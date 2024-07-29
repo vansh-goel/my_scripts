@@ -1,0 +1,83 @@
+#!/bin/bash
+
+#Colors
+purple='\033[1;35m'
+yellow='\033[1;33m'
+cyan="\033[1;36m"
+
+Help()
+{
+ echo "This is a simple and minimal script to read Manga"
+ echo "							"
+ echo "-h         Displays Help"
+ echo "-s         Displays History"
+ echo "-r         Remove Old Chapters"
+ echo "     						"
+ echo "If you want to remove older chapters edit the rem() the number after -n indicates all but the [n] latest chapters to be deleted "
+ echo "							"
+ echo "[Created by Vansh]"
+}
+
+remh()
+{
+ rm -rf ~/.cache/man-cli/hist.txt
+}
+
+rem()
+{
+ ls -tl ~/.cache/man-cli/*cbz | tail -n +6 |xargs rm -rf
+}
+
+    if [ ! -d ~/.cache/man-cli ]; then
+        mkdir ~/.cache/man-cli
+    fi
+
+#Getting the options
+while getopts ":r :s :h " option; do
+ case $option in
+ h)  #Display Help
+     Help
+     exit;;
+ s)  #Displays History
+     num=$(ls -t ~/.cache/man-cli/*.cbz | wc -l)
+     (cd ~/.cache/man-cli/ && ls -t *.cbz | while read fname; do echo ${fname%%.*}; done;) | head -n $num > ~/.cache/man-cli/hist.txt
+     cat < ~/.cache/man-cli/hist.txt
+     remh
+     exit;;
+ r)  #Remove old chapters
+     rem
+     exit;;
+/?)  #Invalid Option
+     echo "Error: Invalid Option"
+     exit;;
+ esac
+done
+
+#Taking Inputs And getting the Page
+echo -en "${yellow}Enter the name of the Manga: "
+read mn
+manga=${mn//[ ]/+}
+echo -n -e "${purple}Enter the Chapter number: "
+read chap
+chapter="chapter-$chap"
+final=$(curl -s http://kweenofthanile.com/search?q=$manga -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:96.0) Gecko/20100101 Firefox/96.0' -H 'Accept-Language: en-US,en;q=0.5' | grep -Eo "/manga\/[a-zA-Z0-9?%-]*" | head -n 1)
+final="http://kweenofthanile.com$final/$chapter"
+re="${mn//[ ]/}-$chap"
+
+if [ ! -f ~/.cache/man-cli/$re.cbz  ]; then
+
+#Getting Images and displaying the manga
+curl -s $final -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:96.0) Gecko/20100101 Firefox/96.0' -H 'Accept-Language: en-US,en;q=0.5' | pup "div.chapter-images" | grep -Eo 'http://.*(\.png|\.jpg)' > ~/.cache/man-cli/temp.txt
+echo -e "${yellow}Downloading the Chapter....."
+wget -q -P ~/.cache/man-cli/ -i  ~/.cache/man-cli/temp.txt
+echo -e  "${cyan}Downloading Completed, Opening the file...."
+rm -rf ~/.cache/man-cli/temp.txt
+zip -q  ~/.cache/man-cli/$re.cbz ~/.cache/man-cli/*.jpg
+rm -rf ~/.cache/man-cli/*.jpg
+zathura ~/.cache/man-cli/$re.cbz
+
+else
+
+zathura ~/.cache/man-cli/$re.cbz
+
+fi
